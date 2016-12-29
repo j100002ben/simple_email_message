@@ -18,9 +18,7 @@ EmailBlock.prototype.addBlock = function(block){
 };
 EmailBlock.prototype.setContentType = function(content_type){
     this.content_type = content_type;
-};
-EmailBlock.prototype.setMultipart = function(flag){
-    this.multipart = !!flag;
+    this.multipart = (content_type.indexOf('multipart/') === 0);
 };
 EmailBlock.prototype.build = function(){
     if (this.multipart) {
@@ -80,6 +78,12 @@ EmailMessage.prototype.setReplyTo = function(reply_to){
 };
 EmailMessage.prototype.setSubject = function(subject){
     this.setHeader('Subject', '=?utf-8?B?' + new Buffer(subject).toString('base64') + '?=');
+};
+EmailMessage.prototype.build = function(){
+    if (this.multipart) {
+        this.setHeader('MIME-Version', '1.0');
+    }
+    EmailBlock.prototype.build.call(this);
 };
 
 function simple_block(content_type, charset, data) {
