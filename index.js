@@ -24,9 +24,7 @@ EmailBlock.prototype.addBlock = function(block){
 };
 EmailBlock.prototype.setContentType = function(content_type){
     this.content_type = content_type;
-};
-EmailBlock.prototype.setMultipart = function(flag){
-    this.multipart = !!flag;
+    this.multipart = (content_type.indexOf('multipart/') === 0);
 };
 EmailBlock.prototype.build = function(){
     if (this.multipart) {
@@ -87,6 +85,12 @@ EmailMessage.prototype.setReplyTo = function(reply_to){
 EmailMessage.prototype.setSubject = function(subject){
     this.setHeader('Subject', '=?utf-8?B?' + new Buffer(subject).toString('base64') + '?=');
 };
+EmailMessage.prototype.build = function(){
+    if (this.multipart) {
+        this.setHeader('MIME-Version', '1.0');
+    }
+    EmailBlock.prototype.build.call(this);
+};
 
 function simple_block(content_type, charset, data) {
     var e = new EmailBlock();
@@ -117,26 +121,26 @@ exports.handler = function(event, context) {
     console.log("Incoming: ", event);
 
     var text_body = "Text body for email";
-    var html_body = "<p>Html body for email</p>";
+    var html_body = "<p>Html body for email <img src="cid:LOGO"></p>";
     var watch_body = "<b>Html body for apple watch</b>";
 
     var em = new EmailMessage();
-    em.setHeader('MIME-Version', '1.0');
+    em.setContentType('multipart/alternative');
     em.setSubject('example email subject');
     em.setForm('"Foo" <foo@example.com>');
     em.setReplyTo('"Foo" <foo@example.com>');
     em.setTo('"Bar" <bar@example.com>');
     em.setBcc('"Bar" <bar@example.com>');
-    em.setContentType('multipart/alternative');
-    em.setMultipart(true);
+    
     em.addBlock(simple_block('text/plain', 'utf-8', text_body));
+    
+    // watch-html MUST after text/plain and before text/html
     em.addBlock(simple_block('text/watch-html', 'utf-8', watch_body));
 
     var related_block = new EmailBlock();
     related_block.setContentType('multipart/related');
-    related_block.setMultipart(true);
     related_block.addBlock(simple_block('text/html',  'utf-8', html_body));
-    related_block.addBlock(attachment_block('image/jpeg', 'logo.jpg', 'LOGO', image));
+    related_block.addBlock(attachment_block('image/jpeg', 'logo.jpg', 'LOGO', BASE64_ENCODE_IMAGE_DATA));
     em.addBlock(related_block);
 
     var eParams = {
